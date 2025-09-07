@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>专业双语招聘分析工具 - Professional Bilingual Recruitment Analyzer</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif; 
+        }
+        .chart-container { height: 400px; margin: 20px 0; }
+        .upload-area { 
+            border: 2px dashed #cbd5e0; 
+            transition: all 0.3s ease; 
+        }
+        .upload-area:hover { 
+            border-color: #4299e1; 
+            background-color: #f7fafc; 
+        }
+        .upload-area.dragover { 
+            border-color: #3182ce; 
+            background-color: #ebf8ff; 
+        }
+        .risk-high { 
+            color: #e53e3e; 
+            background-color: #fed7d7; 
+        }
+        .risk-medium { 
+            color: #d69e2e; 
+            background-color: #faf089; 
+        }
+        .risk-low { 
+            color: #38a169; 
+            background-color: #c6f6d5; 
+        }
+        .priority-p0 { 
+            background-color: #fed7d7; 
+            border-left: 4px solid #e53e3e; 
+        }
+        .priority-p1 { 
+            background-color: #fef5e7; 
+            border-left: 4px solid #d69e2e; 
+        }
+        .priority-p2 { 
+            background-color: #f0fff4; 
+            border-left: 4px solid #38a169; 
+        }
+        @media print { 
+            body { margin: 0; padding: 0; } 
+            .no-print { display: none; } 
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="bg-blue-600 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-6">
+            <h1 class="text-3xl font-bold text-center">
+                <i class="fas fa-users mr-3"></i>
+                专业双语招聘分析工具
+            </h1>
+            <p class="text-center text-blue-100 mt-2">
+                Professional Bilingual Recruitment Analyzer
+            </p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- File Upload Section -->
+        <section class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-800">
+                <i class="fas fa-upload mr-2 text-blue-600"></i>
+                文件上传 / File Upload
+            </h2>
+
+            <div id="uploadArea" class="upload-area p-8 rounded-lg text-center">
+                <div class="mb-4">
+                    <i class="fas fa-cloud-upload-alt text-5xl text-gray-400"></i>
+                </div>
+                <p class="text-lg text-gray-600 mb-2">
+                    拖拽Excel文件到此处，或点击选择文件
+                </p>
+                <p class="text-sm text-gray-500 mb-4">
+                    Drag and drop Excel file here, or click to select
+                </p>
+                <input type="file" id="fileInput" accept=".xlsx,.xls" class="hidden">
+                <button id="selectFileBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition duration-200">
+                    选择文件 / Select File
+                </button>
+            </div>
+
+            <div id="fileInfo" class="hidden mt-4 p-4 bg-gray-50 rounded-lg">
+                <h3 class="font-semibold text-gray-700 mb-2">文件信息 / File Information</h3>
+                <div id="fileDetails"></div>
+            </div>
+        </section>
+        <!-- Analysis Results Section -->
+        <section id="analysisResults" class="hidden">
+            <!-- Overview Statistics -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <h2 class="text-2xl font-semibold mb-4 text-gray-800">
+                    <i class="fas fa-chart-bar mr-2 text-green-600"></i>
+                    数据概览 / Data Overview
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4" id="overviewStats">
+                    <!-- Stats will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <h2 class="text-2xl font-semibold mb-4 text-gray-800">
+                    <i class="fas fa-chart-pie mr-2 text-purple-600"></i>
+                    可视化分析 / Visual Analysis
+                </h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="chart-container">
+                        <h3 class="text-lg font-medium mb-2 text-gray-700">部门分布 / Department Distribution</h3>
+                        <canvas id="departmentChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3 class="text-lg font-medium mb-2 text-gray-700">级别分布 / Level Distribution</h3>
+                        <canvas id="levelChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3 class="text-lg font-medium mb-2 text-gray-700">薪资分布 / Salary Distribution</h3>
+                        <canvas id="salaryChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3 class="text-lg font-medium mb-2 text-gray-700">技能需求 / Skill Requirements</h3>
+                        <canvas id="skillChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Analysis -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <h2 class="text-2xl font-semibold mb-4 text-gray-800">
+                    <i class="fas fa-list-alt mr-2 text-orange-600"></i>
+                    详细分析 / Detailed Analysis
+                </h2>
+                <div class="overflow-x-auto">
+                    <table id="analysisTable" class="min-w-full table-auto">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-2 text-left">职位 / Position</th>
+                                <th class="px-4 py-2 text-left">部门 / Department</th>
+                                <th class="px-4 py-2 text-left">级别 / Level</th>
+                                <th class="px-4 py-2 text-left">薪资范围 / Salary Range</th>
+                                <th class="px-4 py-2 text-left">技能要求 / Skills</th>
+                                <th class="px-4 py-2 text-left">优先级 / Priority</th>
+                            </tr>
+                        </thead>
+                        <tbody id="analysisTableBody">
+                            <!-- Data will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Export Options -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <h2 class="text-2xl font-semibold mb-4 text-gray-800">
+                    <i class="fas fa-download mr-2 text-blue-600"></i>
+                    导出选项 / Export Options
+                </h2>
+                <div class="flex flex-wrap gap-4">
+                    <button id="exportPDF" class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg transition duration-200">
+                        <i class="fas fa-file-pdf mr-2"></i>
+                        导出PDF / Export PDF
+                    </button>
+                    <button id="exportExcel" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition duration-200">
+                        <i class="fas fa-file-excel mr-2"></i>
+                        导出Excel / Export Excel
+                    </button>
+                    <button id="exportJSON" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg transition duration-200">
+                        <i class="fas fa-file-code mr-2"></i>
+                        导出JSON / Export JSON
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8 mt-12">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-gray-300">
+                © 2024 专业双语招聘分析工具 / Professional Bilingual Recruitment Analyzer
+            </p>
+            <p class="text-gray-400 mt-2">
+                支持Excel文件分析，提供多维度招聘数据洞察
+            </p>
+        </div>
+    </footer>
+    <script>
+        // Global variables
+        let analysisData = [];
+        let charts = {};
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeUpload();
+            initializeExportButtons();
+        });
+
+        // Initialize file upload functionality
+        function initializeUpload() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+            const selectFileBtn = document.getElementById('selectFileBtn');
+
+            // File selection button
+            selectFileBtn.addEventListener('click', () => fileInput.click());
+
+            // File input change
+            fileInput.addEventListener('change', handleFileSelect);
+
+            // Drag and drop functionality
+            uploadArea.addEventListener('dragover', handleDragOver);
+            uploadArea.addEventListener('dragleave', handleDragLeave);
+            uploadArea.addEventListener('drop', handleFileDrop);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('dragover');
+        }
+
+        function handleFileDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('dragover');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                processFile(file);
+            }
+        }
+
+        // Process uploaded Excel file
+        function processFile(file) {
+            if (!file.name.match(/\.(xlsx|xls)$/)) {
+                alert('请选择Excel文件 / Please select an Excel file');
+                return;
+            }
+
+            showFileInfo(file);
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const workbook = XLSX.read(e.target.result, { type: 'binary' });
+                    const sheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+                    processAnalysisData(jsonData);
+                    showAnalysisResults();
+                } catch (error) {
+                    console.error('文件处理错误:', error);
+                    alert('文件处理失败，请检查文件格式 / File processing failed, please check file format');
+                }
+            };
+            reader.readAsBinaryString(file);
+        }
+
+        function showFileInfo(file) {
+            const fileInfo = document.getElementById('fileInfo');
+            const fileDetails = document.getElementById('fileDetails');
+
+            fileDetails.innerHTML = `
+                <p><strong>文件名 / Filename:</strong> ${file.name}</p>
+                <p><strong>文件大小 / File size:</strong> ${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                <p><strong>文件类型 / File type:</strong> ${file.type}</p>
+                <p><strong>上传时间 / Upload time:</strong> ${new Date().toLocaleString()}</p>
+            `;
+
+            fileInfo.classList.remove('hidden');
+        }
+
+        // Process and analyze recruitment data
+        function processAnalysisData(jsonData) {
+            analysisData = jsonData.map(row => ({
+                position: row['职位'] || row['Position'] || row['岗位'] || '',
+                department: row['部门'] || row['Department'] || row['团队'] || '',
+                level: row['级别'] || row['Level'] || row['等级'] || '',
+                salary: row['薪资'] || row['Salary'] || row['薪酬'] || '',
+                skills: row['技能'] || row['Skills'] || row['技能要求'] || '',
+                priority: row['优先级'] || row['Priority'] || 'P2',
+                experience: row['经验'] || row['Experience'] || row['工作经验'] || '',
+                location: row['地点'] || row['Location'] || row['工作地点'] || ''
+            }));
+
+            console.log('处理后的数据:', analysisData);
+        }
+
+        function showAnalysisResults() {
+            document.getElementById('analysisResults').classList.remove('hidden');
+            generateOverviewStats();
+            generateCharts();
+            populateAnalysisTable();
+        }
+
+        // Generate overview statistics
+        function generateOverviewStats() {
+            const stats = {
+                totalPositions: analysisData.length,
+                departments: [...new Set(analysisData.map(item => item.department).filter(d => d))].length,
+                highPriority: analysisData.filter(item => item.priority === 'P0').length,
+                averageSalary: calculateAverageSalary()
+            };
+
+            const statsHtml = `
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <div class="text-2xl font-bold text-blue-600">${stats.totalPositions}</div>
+                    <div class="text-sm text-gray-600">总职位数 / Total Positions</div>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg">
+                    <div class="text-2xl font-bold text-green-600">${stats.departments}</div>
+                    <div class="text-sm text-gray-600">部门数量 / Departments</div>
+                </div>
+                <div class="bg-red-50 p-4 rounded-lg">
+                    <div class="text-2xl font-bold text-red-600">${stats.highPriority}</div>
+                    <div class="text-sm text-gray-600">高优先级 / High Priority</div>
+                </div>
+                <div class="bg-purple-50 p-4 rounded-lg">
+                    <div class="text-2xl font-bold text-purple-600">${stats.averageSalary}</div>
+                    <div class="text-sm text-gray-600">平均薪资 / Avg Salary</div>
+                </div>
+            `;
+
+            document.getElementById('overviewStats').innerHTML = statsHtml;
+        }
+
+        function calculateAverageSalary() {
+            const salaries = analysisData.map(item => {
+                const salary = item.salary.toString().replace(/[^\d]/g, '');
+                return salary ? parseInt(salary) : 0;
+            }).filter(s => s > 0);
+
+            if (salaries.length === 0) return 'N/A';
+
+            const average = salaries.reduce((a, b) => a + b, 0) / salaries.length;
+            return `${(average / 1000).toFixed(0)}k`;
+        }
+
+        // Generate charts
+        function generateCharts() {
+            generateDepartmentChart();
+            generateLevelChart();
+            generateSalaryChart();
+            generateSkillChart();
+        }
+
+        function generateDepartmentChart() {
+            const departments = {};
+            analysisData.forEach(item => {
+                const dept = item.department || '未知部门';
+                departments[dept] = (departments[dept] || 0) + 1;
+            });
+
+            const ctx = document.getElementById('departmentChart').getContext('2d');
+            charts.department = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(departments),
+                    datasets: [{
+                        data: Object.values(departments),
+                        backgroundColor: [
+                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                            '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateLevelChart() {
+            const levels = {};
+            analysisData.forEach(item => {
+                const level = item.level || '未知级别';
+                levels[level] = (levels[level] || 0) + 1;
+            });
+
+            const ctx = document.getElementById('levelChart').getContext('2d');
+            charts.level = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(levels),
+                    datasets: [{
+                        data: Object.values(levels),
+                        backgroundColor: [
+                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                            '#9966FF', '#FF9F40'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateSalaryChart() {
+            const salaryRanges = {
+                '0-10k': 0,
+                '10-20k': 0,
+                '20-30k': 0,
+                '30-50k': 0,
+                '50k+': 0
+            };
+
+            analysisData.forEach(item => {
+                const salary = parseInt(item.salary.toString().replace(/[^\d]/g, '')) || 0;
+                if (salary === 0) return;
+
+                if (salary < 10000) salaryRanges['0-10k']++;
+                else if (salary < 20000) salaryRanges['10-20k']++;
+                else if (salary < 30000) salaryRanges['20-30k']++;
+                else if (salary < 50000) salaryRanges['30-50k']++;
+                else salaryRanges['50k+']++;
+            });
+
+            const ctx = document.getElementById('salaryChart').getContext('2d');
+            charts.salary = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(salaryRanges),
+                    datasets: [{
+                        label: '职位数量 / Position Count',
+                        data: Object.values(salaryRanges),
+                        backgroundColor: '#36A2EB',
+                        borderColor: '#2E86AB',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateSkillChart() {
+            const skills = {};
+            analysisData.forEach(item => {
+                if (item.skills) {
+                    const skillList = item.skills.split(/[,，、;；]/);
+                    skillList.forEach(skill => {
+                        const cleanSkill = skill.trim();
+                        if (cleanSkill) {
+                            skills[cleanSkill] = (skills[cleanSkill] || 0) + 1;
+                        }
+                    });
+                }
+            });
+
+            // Get top 10 skills
+            const sortedSkills = Object.entries(skills)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10);
+
+            const ctx = document.getElementById('skillChart').getContext('2d');
+            charts.skill = new Chart(ctx, {
+                type: 'horizontalBar',
+                data: {
+                    labels: sortedSkills.map(item => item[0]),
+                    datasets: [{
+                        label: '需求次数 / Demand Count',
+                        data: sortedSkills.map(item => item[1]),
+                        backgroundColor: '#4BC0C0',
+                        borderColor: '#36A2EB',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Populate analysis table
+        function populateAnalysisTable() {
+            const tableBody = document.getElementById('analysisTableBody');
+
+            const tableHtml = analysisData.map(item => `
+                <tr class="border-b hover:bg-gray-50 ${getPriorityClass(item.priority)}">
+                    <td class="px-4 py-3">${item.position}</td>
+                    <td class="px-4 py-3">${item.department}</td>
+                    <td class="px-4 py-3">${item.level}</td>
+                    <td class="px-4 py-3">${item.salary}</td>
+                    <td class="px-4 py-3">
+                        <span class="text-sm">${(item.skills || '').substring(0, 50)}${item.skills && item.skills.length > 50 ? '...' : ''}</span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="px-2 py-1 rounded text-sm font-medium ${getPriorityBadgeClass(item.priority)}">
+                            ${item.priority}
+                        </span>
+                    </td>
+                </tr>
+            `).join('');
+
+            tableBody.innerHTML = tableHtml;
+        }
+
+        function getPriorityClass(priority) {
+            switch(priority) {
+                case 'P0': return 'priority-p0';
+                case 'P1': return 'priority-p1';
+                case 'P2': return 'priority-p2';
+                default: return '';
+            }
+        }
+
+        function getPriorityBadgeClass(priority) {
+            switch(priority) {
+                case 'P0': return 'bg-red-100 text-red-800';
+                case 'P1': return 'bg-yellow-100 text-yellow-800';
+                case 'P2': return 'bg-green-100 text-green-800';
+                default: return 'bg-gray-100 text-gray-800';
+            }
+        }
+
+        // Initialize export buttons
+        function initializeExportButtons() {
+            document.getElementById('exportPDF').addEventListener('click', exportToPDF);
+            document.getElementById('exportExcel').addEventListener('click', exportToExcel);
+            document.getElementById('exportJSON').addEventListener('click', exportToJSON);
+        }
+
+        function exportToPDF() {
+            window.print();
+        }
+
+        function exportToExcel() {
+            if (analysisData.length === 0) {
+                alert('没有数据可导出 / No data to export');
+                return;
+            }
+
+            const ws = XLSX.utils.json_to_sheet(analysisData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, '招聘分析数据');
+            XLSX.writeFile(wb, `recruitment_analysis_${new Date().getTime()}.xlsx`);
+        }
+
+        function exportToJSON() {
+            if (analysisData.length === 0) {
+                alert('没有数据可导出 / No data to export');
+                return;
+            }
+
+            const dataStr = JSON.stringify(analysisData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `recruitment_analysis_${new Date().getTime()}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
